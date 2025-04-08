@@ -1,0 +1,25 @@
+# Ignorar el entorno virtual
+.venv/
+
+# Archivos de compilación de Python
+*.pyc
+*.pyo
+__pycache__/
+
+# Archivos de configuración de entornos
+.env
+
+# Archivos de bases de datos SQLite
+*.db
+*.sqlite3
+
+# Archivos de logs
+*.log
+
+# Archivos de configuración de IDEs (ejemplo: VSCode, PyCharm)
+.vscode/
+.idea/
+
+# Archivos de prueba y cachés
+*.bak
+*.swp
