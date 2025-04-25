@@ -15,6 +15,13 @@ def create_user(db: Session, user_data: UserCreate):
             status_code=400,
             detail="Correo electrónico no válido."
         )
+        # Verificar si el correo ya está en uso
+    existing_user = db.query(User).filter(User.email == user_data.email).first()
+    if existing_user:
+        raise HTTPException(
+            status_code=400,
+            detail="El correo ya está registrado."
+        )
 
     # Validar la contraseña
     if not verify_structure_password(user_data.password):
@@ -29,6 +36,10 @@ def create_user(db: Session, user_data: UserCreate):
             status_code=400,
             detail="El campo 'persona' es obligatorio."
         )
+    # Verificar si el número de teléfono ya está registrado
+    existing_persona = db.query(Persona).filter(Persona.phone_number == user_data.persona.phone_number).first()
+    if existing_persona:
+        raise HTTPException(status_code=400, detail="El número de teléfono ya está registrado.")
 
     # Crear la persona primero
     new_person = Persona(**user_data.persona.model_dump())  # Usa `.model_dump()` si usas Pydantic v2
@@ -110,14 +121,21 @@ def get_all_users(db: Session):
 def get_user_id_by_email(db: Session, user_email: str):
     """
     Devuelve el ID de un usuario basado en su correo electrónico.
-    Si no se encuentra el usuario, lanza una excepción HTTP 404.
+    Si no se encuentra el usuario, devuelve un error como texto plano.
     """
+
+    # Validar la estructura del email
+    if not verify_email(user_email):
+        # Devuelve texto plano, no un "detail"
+        raise HTTPException(status_code=400, detail="Correo electrónico no válido.")
+
+    # Buscar el usuario
     user = db.query(User).filter(User.email == user_email).first()
+
     if user:
         return user.id
     else:
         raise HTTPException(status_code=404, detail="Usuario no encontrado con este correo electrónico.")
-
 
 def update_password(db: Session, user_id: int, new_password: str):
     user = get_user_by_id(db, user_id)

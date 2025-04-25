@@ -1,3 +1,5 @@
+import base64
+
 from fastapi import HTTPException
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -5,7 +7,7 @@ from sqlalchemy.orm import Session
 from app.models.domain.persona import Persona
 from app.models.domain.user import User
 from app.models.schema.persona import PersonaCreate, PersonaUpdate, PersonaBase
-from app.services.verify import verify_cellphone_number,verify_location_field
+from app.services.verify import verify_cellphone_number, verify_location_field, verify_image_size
 
 
 def create_persona(db: Session, persona_data: PersonaCreate):
@@ -48,32 +50,31 @@ def update_persona(db: Session, persona_id: int, persona_data: PersonaUpdate):
 
     update_data = persona_data.dict(exclude_unset=True)
 
-    # Validar número de teléfono si se proporciona
+    # Validación del número de teléfono
     if "phone_number" in update_data and not verify_cellphone_number(update_data["phone_number"]):
         raise HTTPException(
             status_code=400,
             detail="Número de teléfono inválido. Debe tener entre 7 y 10 dígitos numéricos."
         )
 
-    # Validar ciudad y barrio si se proporcionan
+    # Validación de ubicación
     if "city" in update_data:
         update_data["city"] = verify_location_field(update_data["city"], "Ciudad")
     if "neighborhood" in update_data:
         update_data["neighborhood"] = verify_location_field(update_data["neighborhood"], "Barrio")
 
-    # Actualizar la foto de perfil en la tabla Persona
+    # Si se envía imagen base64, convertirla a bytes y validar
     if "profile_picture" in update_data:
+        update_data["profile_picture"] = verify_image_size(update_data["profile_picture"])
         persona.profile_picture = update_data["profile_picture"]
 
-    # Aplicar los cambios en la persona
+    # Aplicar cambios
     for key, value in update_data.items():
         setattr(persona, key, value)
 
     db.commit()
     db.refresh(persona)
-
     return persona
-
 def delete_persona(db: Session, persona_id: int):
     persona = get_persona_by_id(db, persona_id)
     if not persona:

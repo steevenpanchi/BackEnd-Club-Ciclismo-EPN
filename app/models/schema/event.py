@@ -1,3 +1,5 @@
+import base64
+
 from fastapi.openapi.models import Schema
 from pydantic import BaseModel, HttpUrl
 from typing import Optional
@@ -12,25 +14,53 @@ class EventLevel(str, Enum):
     BASIC = "Básico"
     INTERMEDIATE = "Intermedio"
     ADVANCED = "Avanzado"
+
+class EventMode(str, Enum):
+    MOUNTAIN = "Montaña"
+    ROAD = "Carretera"
+
 class EventBase(BaseModel):
     event_type: EventType
     route_id: int
-    event_level: EventLevel
-    image: Optional[HttpUrl] = None
-    creation_date: datetime
     meeting_point: str
+    creation_date: datetime
+    event_level: EventLevel
+    event_mode: EventMode
+    image: Optional[str] = None
 class EventCreate(EventBase):
     pass
 
 class EventUpdate(BaseModel):
-    event_type: Optional[EventType]=None
-    route_id: Optional[int]=None
-    event_level: Optional[EventLevel]=None
-    image: Optional[HttpUrl]=None
-    creation_date: Optional[datetime]=None
-    meeting_point: Optional[str]=None
+    event_type: Optional[EventType] = None
+    route_id: Optional[int] = None
+    meeting_point: Optional[str] = None
+    creation_date: Optional[datetime] = None
+    event_level: Optional[EventLevel] = None
+    event_mode: Optional[EventMode] = None
+    image: Optional[str] = None
 
 class EventResponse(EventBase):
     id: int
+
     class Config:
         from_attributes = True
+
+    @classmethod
+    def from_orm(cls, obj):
+        image_base64 = None
+        if obj.image and isinstance(obj.image, (bytes, bytearray)):
+            try:
+                image_base64 = f"data:image/png;base64,{base64.b64encode(obj.image).decode()}"
+            except Exception:
+                image_base64 = None
+
+        return cls(
+            id=obj.id,
+            event_type=obj.event_type,
+            route_id=obj.route_id,
+            meeting_point=obj.meeting_point,
+            creation_date=obj.creation_date,
+            event_level=obj.event_level,
+            event_mode=obj.event_mode,
+            image=image_base64
+        )

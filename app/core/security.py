@@ -1,11 +1,12 @@
 # app/core/security.py
 import os
 from datetime import datetime, timedelta
+from fastapi import Header
 
 from dotenv import load_dotenv
+from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
 from fastapi import Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 from app.db.session import get_db
 from app.models.domain.user import User
@@ -17,9 +18,14 @@ load_dotenv()
 SECRET_KEY = os.getenv("SECRET_KEY")
 ALGORITHM = os.getenv("ALGORITHM")
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES"))
-
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/token")
 
+
+
+def get_token_from_header(authorization: str = Header(...)) -> str:
+    if not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Invalid authorization header")
+    return authorization.split(" ")[1]
 
 # Crear el token JWT
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
@@ -51,15 +57,15 @@ def verify_access_token(token: str, credentials_exception):
         raise credentials_exception
 
 
-# Obtener el usuario actual usando el token
+
 def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)) -> User:
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
         headers={"WWW-Authenticate": "Bearer"},
     )
-    email = verify_access_token(token, credentials_exception)  # Cambiar 'username' por 'email'
-    user = get_user(db, email=email)  # Cambiar 'username' por 'email'
+    email = verify_access_token(token, credentials_exception)
+    user = get_user(db, email=email)
     if user is None:
         raise credentials_exception
     return user

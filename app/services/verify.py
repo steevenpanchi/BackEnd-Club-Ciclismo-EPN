@@ -1,3 +1,4 @@
+import base64
 import re
 from fastapi import HTTPException
 
@@ -43,7 +44,15 @@ def verify_location_field(value: str, field_name: str) -> str:
 
     return value  # Devuelve el valor si pasa la validación
 
-def verify_image_size(image_bytes, max_size=5 * 1024 * 1024):
-    if image_bytes and len(image_bytes) > max_size:
-        raise ValueError("La imagen excede el tamaño máximo permitido.")
-    return image_bytes
+def verify_image_size(image_data_str: str, max_size=5 * 1024 * 1024) -> bytes:
+    if image_data_str:
+        try:
+            image_bytes = base64.b64decode(image_data_str)
+        except Exception as e:
+            raise ValueError(f"Imagen inválida: {str(e)}")
+
+        if len(image_bytes) > max_size:
+            raise ValueError("La imagen excede el tamaño máximo permitido.")
+
+        return image_bytes
+    return None

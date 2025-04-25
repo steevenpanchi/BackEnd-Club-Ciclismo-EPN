@@ -1,6 +1,6 @@
 from enum import Enum
 
-from sqlalchemy import Column, Integer, String, Enum as SQLAEnum
+from sqlalchemy import Column, Integer, String, Enum as SQLAEnum, LargeBinary
 from sqlalchemy.orm import relationship
 from app.db.database import Base
 
@@ -31,7 +31,7 @@ class Persona(Base):
     neighborhood = Column(String(255), nullable=False)
     blood_type = Column(SQLAEnum(BloodType), nullable=False)
     skill_level = Column(SQLAEnum(SkillLevel), nullable=False)
-    profile_picture = Column(String(255), nullable=True)
+    profile_picture = Column(LargeBinary, nullable=True)
 
 
 

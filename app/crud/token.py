@@ -42,7 +42,7 @@ def update_token(db: Session, token: AuthToken):
         return {"detail": "Contraseña actualizada"}
     except IntegrityError as ie:
         db.rollback()
-        return HTTPException(status_code=403, detail="could not update")
+        return HTTPException(status_code=403, detail="No se pudo actualizar.")
 
 
 def mark_token_as_used(db: Session, code: int):

@@ -1,33 +1,33 @@
 import pytz
 from fastapi import APIRouter, BackgroundTasks
+from fastapi import Form
+from fastapi.security import OAuth2PasswordRequestForm
 from pydantic import EmailStr
 from sqlalchemy.exc import SQLAlchemyError
-from fastapi import Form
 
 from app.core.security import *
 from app.crud.persona import update_persona
 from app.crud.token import create_token, verify_token
 from app.crud.user import get_user_id_by_email, create_user
 from app.db.session import get_db
-from app.models.domain.persona import Persona
 from app.models.domain.token import AuthToken
 from app.models.domain.user import User, Role
 from app.models.schema.persona import PersonaResponse, PersonaUpdate
 from app.models.schema.user import UserCreate, UserResponse, UserWithPersonaResponse, UserUpdate, Token, TokenData
-from app.services.crypt import get_password_hash, verify_password
+from app.services.crypt import verify_password
 from app.services.email_service import send_email
 from app.services.multi_crud_service import reset_password
-from app.services.verify import verify_email, verify_structure_password
+from app.services.verify import verify_structure_password
 
 router = APIRouter()
 
-
 ALL_AUTH_ROLES = [Role.ADMIN, Role.NORMAL]
+
 
 @router.post("/register", response_model=UserResponse)
 def register_user(register_data: UserCreate,
                   db: Session = Depends(get_db),
-                  current_user: TokenData = Depends(get_current_user)):
+                  ):
     """
     Create a new User / Crear un nuevo Usuario
 
@@ -79,17 +79,16 @@ def register_user(register_data: UserCreate,
             - **Bajo**: Nivel de habilidad bajo.
         - **profile_picture** (opcional): URL de imagen de perfil. Valor por defecto es null.
     """
-    if current_user.role.value not in ALL_AUTH_ROLES:
-        raise HTTPException(status_code=403, detail="Not enough permissions")
+
     # Simplemente usa la función del crud
     new_user = create_user(db, register_data)
 
     return new_user
 
+
 @router.post("/token", response_model=Token)
 def login_for_access_token(
-        email: str = Form(...),
-        password: str = Form(...),
+        form_data: OAuth2PasswordRequestForm = Depends(),
         db: Session = Depends(get_db)
 ):
     """
@@ -108,29 +107,24 @@ def login_for_access_token(
     - **password** (requerido): Contraseña del usuario.
     """
 
-    user = get_user(db, email=email)
-
-    if not user or not verify_password(password, user.hashed_password):
+    user = get_user(db, email=form_data.username)
+    if not user or not verify_password(form_data.password, user.hashed_password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect email or password",
+            detail="Email o contraseña incorrectos.",
             headers={"WWW-Authenticate": "Bearer"},
         )
-
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
-        data={"sub": user.email, "role": user.role},
-        expires_delta=access_token_expires
+        data={"sub": user.email, "role": user.role}, expires_delta=access_token_expires
     )
-
     return {"access_token": access_token, "token_type": "bearer"}
-
 
 @router.delete("/delete/{user_id}", response_model=UserResponse)
 def delete_user_and_persona(user_id: int, db: Session = Depends(get_db),
-    current_user: TokenData = Depends(get_current_user)
+                            current_user: TokenData = Depends(get_current_user)
 
-):
+                            ):
     """
            English:
            --------
@@ -217,48 +211,20 @@ def get_users(db: Session = Depends(get_db),
         raise HTTPException(status_code=500, detail=f"Error al obtener los usuarios: {str(e)}")
 
 
-@router.get("/users/{user_id}", response_model=UserWithPersonaResponse)
-def get_user_by_id(user_id: int, db: Session = Depends(get_db),
-                   current_user: TokenData = Depends(get_current_user)):
+@router.get("/my_profile", response_model=PersonaResponse)
+def get_my_profile(db: Session = Depends(get_db),
+                   current_user: User = Depends(get_current_user)):
     """
-    Get User by user_id / Obtener usuario por user_id
-
-    English:
-    --------
-    Retrieve a user by their user_id, including their role and associated personal information.
-
-    - **user_id** (required): ID of the user to retrieve.
-
-    Español:
-    --------
-    Obtener un usuario por su user_id, incluyendo su rol y la información personal asociada.
-
-    - **user_id** (requerido): ID del usuario a obtener.
+    Obtener el perfil del usuario autenticado, solo con la información personal (persona).
     """
-    if current_user.role.value not in [Role.ADMIN]:
-        raise HTTPException(status_code=403, detail="Not enough permissions")
-
     try:
-        # Consultar el usuario por su id, incluyendo la relación con la persona
-        user = db.query(User).filter(User.id == user_id).first()
+        if not current_user.person:
+            raise HTTPException(status_code=404, detail="No se encontró información de persona asociada")
 
-        if not user:
-            raise HTTPException(status_code=404, detail="Usuario no encontrado")
-
-        # Mapear la respuesta para incluir el rol y la persona asociada
-        user_response = UserWithPersonaResponse(
-            id=user.id,
-            role=user.role,  # Agregar el rol del usuario
-            person=PersonaResponse.from_orm(user.person)  # Mapear la persona asociada
-        )
-
-        return user_response  # Devolver el usuario con su rol y persona asociada
+        return PersonaResponse.from_orm(current_user.person)
 
     except Exception as e:
-        # Agregar más detalles sobre el error
-        print(f"Error al obtener el usuario: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Error al obtener el usuario: {str(e)}")
-
+        raise HTTPException(status_code=500, detail=f"Error al obtener el perfil: {str(e)}")
 
 @router.put("/update/basic_information/{persona_id}", response_model=PersonaResponse)
 def update_basic_info(persona_id: int, persona_update: PersonaUpdate, db: Session = Depends(get_db),
@@ -391,7 +357,7 @@ async def send_reset_password_code(
 
         if not user_id:
             # No revelamos si el email existe por seguridad
-            return {"message": "Si el correo existe, el código será enviado"}
+            return {"message": "El código fue enviado exitosamente."}
 
         # Generar y guardar el token
         reset_token = AuthToken()
@@ -416,10 +382,16 @@ async def send_reset_password_code(
         # Enviar el email en segundo plano
         background_tasks.add_task(send_email, email, subject, context, "email.html")
 
-        return {"message": "Si el correo existe, el código será enviado"}
+        return {"message": "El código fue enviado exitosamente."}
+
+    except HTTPException as http_exc:
+        raise http_exc
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error interno: {str(e)}")
+        raise HTTPException(status_code=500, detail="Error interno del servidor.")
+
+
+
 
 
 @router.post('/reset_password/verify', response_model=dict)
