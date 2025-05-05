@@ -1,4 +1,6 @@
-from sqlalchemy.orm import Session
+import base64
+
+from sqlalchemy.orm import Session, joinedload
 from app.models.domain.event import Event
 from app.models.schema.event import EventCreate, EventUpdate, EventResponse
 from app.services.verify import verify_image_size
@@ -21,12 +23,8 @@ def create_event(db: Session, event_data: EventCreate) -> EventResponse:
     # Devolver el evento usando el método from_orm para transformar la imagen
     return EventResponse.from_orm(db_event)
 
-
-def get_event_by_id(db: Session, event_id: int):
-    return db.query(Event).filter(Event.id == event_id).first()
-
 def get_events(db: Session):
-    return db.query(Event).order_by(Event.creation_date.desc()).all()
+    return db.query(Event).options(joinedload(Event.route)).order_by(Event.creation_date.desc()).all()
 
 
 def update_event(db: Session, event_id: int, event_data: EventUpdate):
@@ -36,9 +34,14 @@ def update_event(db: Session, event_id: int, event_data: EventUpdate):
 
     update_data = event_data.dict(exclude_unset=True)
 
-    # Procesar imagen base64 si se envía
     if "image" in update_data and update_data["image"]:
-        update_data["image"] = verify_image_size(update_data["image"])
+        if isinstance(update_data["image"], str):
+            # Si viene como string (data:image/png;base64,....)
+            if update_data["image"].startswith("data:image"):
+                base64_data = update_data["image"].split(",")[1]  # Remover el encabezado
+            else:
+                base64_data = update_data["image"]
+            update_data["image"] = base64.b64decode(base64_data)
 
     for key, value in update_data.items():
         setattr(db_event, key, value)
@@ -46,6 +49,7 @@ def update_event(db: Session, event_id: int, event_data: EventUpdate):
     db.commit()
     db.refresh(db_event)
     return db_event
+
 
 def delete_event(db: Session, event_id: int):
     db_event = db.query(Event).filter(Event.id == event_id).first()

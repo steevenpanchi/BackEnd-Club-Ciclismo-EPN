@@ -39,11 +39,20 @@ class EventUpdate(BaseModel):
     event_mode: Optional[EventMode] = None
     image: Optional[str] = None
 
-class EventResponse(EventBase):
+class EventResponse(BaseModel):
     id: int
+    event_type: EventType
+    route_id: int
+    route_name: Optional[str]  # 🆕 Añadido
+    meeting_point: str
+    creation_date: datetime
+    event_level: EventLevel
+    event_mode: EventMode
+    image: Optional[str] = None
 
     class Config:
         from_attributes = True
+        extra = "ignore"
 
     @classmethod
     def from_orm(cls, obj):
@@ -58,6 +67,7 @@ class EventResponse(EventBase):
             id=obj.id,
             event_type=obj.event_type,
             route_id=obj.route_id,
+            route_name=obj.route.name if hasattr(obj, 'route') and obj.route else None,
             meeting_point=obj.meeting_point,
             creation_date=obj.creation_date,
             event_level=obj.event_level,
