@@ -56,7 +56,14 @@ class UserWithPersonaResponse(BaseModel):
     id: int
     role: Role
 
-    person: PersonaResponse  # Se incluye la persona asociada
+    person: PersonaResponse
+
+    class Config:
+        from_attributes = True
+
+class UserBasicResponse(BaseModel):
+    id: int
+    person: PersonaResponse
 
     class Config:
         from_attributes = True

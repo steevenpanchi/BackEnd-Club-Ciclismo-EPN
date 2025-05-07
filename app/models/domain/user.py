@@ -1,7 +1,10 @@
 from enum import Enum
-from sqlalchemy import Column, Integer, String, Boolean, Enum as SQLAEnum, ForeignKey
+
+from sqlalchemy import Column, Integer, String, Enum as SQLAEnum, ForeignKey
 from sqlalchemy.orm import relationship
+
 from app.db.database import Base
+
 
 class Role(str, Enum):
     ADMIN = "Admin"
@@ -9,7 +12,6 @@ class Role(str, Enum):
 
 
 class User(Base):
-
     __tablename__ = "user"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -23,3 +25,6 @@ class User(Base):
 
     # Relación con AuthToken
     token = relationship("AuthToken", uselist=False, back_populates="user")
+
+    # Relación con EventParticipant
+    event_participations = relationship("EventParticipant", back_populates="user", cascade="all, delete")

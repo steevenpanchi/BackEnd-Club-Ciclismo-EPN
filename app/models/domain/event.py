@@ -33,5 +33,8 @@ class Event(Base):
     event_mode = Column(SQLAEnum(EventMode), nullable=False)
     image = Column(LargeBinary, nullable=True)
 
-    # Relationship with Route
+    # Relación con Route
     route = relationship("Route", back_populates="events")
+
+    # Relación con EventParticipant
+    participants = relationship("EventParticipant", back_populates="event", cascade="all, delete")

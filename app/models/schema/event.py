@@ -43,7 +43,7 @@ class EventResponse(BaseModel):
     id: int
     event_type: EventType
     route_id: int
-    route_name: Optional[str]  # 🆕 Añadido
+    route_name: Optional[str]
     meeting_point: str
     creation_date: datetime
     event_level: EventLevel

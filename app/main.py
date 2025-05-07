@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.utils import get_openapi
 from starlette.staticfiles import StaticFiles
 
-from app.api.endpoints import auth, event, route
+from app.api.endpoints import auth, event, route, event_participant
 from app.core.init_data import create_admin_user
 from app.db.init_db import init_db
 
@@ -25,6 +25,8 @@ app.add_middleware(
 app.include_router(auth.router, prefix="/auth", tags=["auth"])
 app.include_router(event.router, prefix="/event", tags=["event"])
 app.include_router(route.router, prefix="/route", tags=["route"])
+app.include_router(event_participant.router, prefix="/participants", tags=["participants"])
+
 
 # ⚙️ Inicializar base de datos y crear admin
 @app.on_event("startup")
