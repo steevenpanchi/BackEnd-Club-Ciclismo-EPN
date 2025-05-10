@@ -1,8 +1,7 @@
 from typing import List
-
+from datetime import datetime, timedelta
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-
 from app.core.security import get_current_user
 from app.crud import event_participant as crud_part
 from app.db.session import get_db
@@ -56,6 +55,18 @@ def register_user_to_event(
     )
     if existing:
         raise HTTPException(status_code=409, detail="Ya estás inscrito en este evento")
+
+    event = db.query(Event).filter(Event.id == participation.event_id).first()
+    if not event:
+        raise HTTPException(status_code=404, detail="Evento no encontrado")
+
+    limite_inscripcion = (event.creation_date - timedelta(days=1)).replace(hour=23, minute=59, second=59)
+
+    if datetime.now() > limite_inscripcion:
+        raise HTTPException(
+            status_code=403,
+            detail="La inscripción está cerrada para este evento"
+        )
 
     crud_part.create_participation(db, user_id=current_user.id, participation=participation)
 
@@ -155,3 +166,18 @@ def unregister_user_from_event(
         raise HTTPException(status_code=404, detail="No estás inscrito en este evento")
 
     return {"detail": "Te has desenrolado del evento correctamente"}
+
+@router.get("/my_events", response_model=List[int])
+def get_my_registered_events(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    if current_user.role != Role.NORMAL:
+        raise HTTPException(status_code=403, detail="No autorizado")
+
+    participaciones = (
+        db.query(EventParticipant)
+        .filter(EventParticipant.user_id == current_user.id)
+        .all()
+    )
+    return [p.event_id for p in participaciones]
