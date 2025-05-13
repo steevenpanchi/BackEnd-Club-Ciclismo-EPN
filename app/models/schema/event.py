@@ -48,6 +48,7 @@ class EventResponse(BaseModel):
     creation_date: datetime
     event_level: EventLevel
     event_mode: EventMode
+    is_available: bool
     image: Optional[str] = None
 
     class Config:
@@ -72,5 +73,6 @@ class EventResponse(BaseModel):
             creation_date=obj.creation_date,
             event_level=obj.event_level,
             event_mode=obj.event_mode,
+            is_available=obj.is_available,
             image=image_base64
         )

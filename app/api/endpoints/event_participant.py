@@ -29,8 +29,8 @@ def register_user_to_event(
     --------
     Allows a user with role 'Normal' to register for a cycling event.
 
-    - **Requires authentication.**
-    - **Only users with role 'Normal' can register.**
+    - Requires authentication.
+    - Only users with role 'Normal' can register.
     - Returns an error if the user is already registered.
     - **event_id** (required): ID of the event to register.
 
@@ -38,8 +38,8 @@ def register_user_to_event(
     --------
     Permite que un usuario con rol 'Normal' se inscriba en un evento de ciclismo.
 
-    - **Requiere autenticación.**
-    - **Solo los usuarios con rol 'Normal' pueden registrarse.**
+    - Requiere autenticación.
+    - Solo los usuarios con rol 'Normal' pueden registrarse.
     - Devuelve error si el usuario ya está inscrito.
     - **event_id** (requerido): ID del evento al que se desea registrar.
 
@@ -83,14 +83,14 @@ def get_participants(event_id: int, db: Session = Depends(get_db),
     English:
     --------
     Retrieve the list of users registered for a specific event.
-    - **Only accessible by users with the 'Admin' role.**
+    - Only accessible by users with the 'Admin' role.
     - Returns participant information including user and personal details.
     - **event_id** (int): ID of the event to retrieve participants for.
 
     Español:
     --------
     Obtiene la lista de usuarios inscritos en un evento específico.
-    - **Solo accesible para usuarios con rol 'Admin'.**
+    - Solo accesible para usuarios con rol 'Admin'.
     - Devuelve información del participante, incluyendo detalles del usuario y su persona asociada.
     - **event_id** (int): ID del evento del cual se desea obtener los participantes.
 
@@ -136,8 +136,8 @@ def unregister_user_from_event(
     --------
     Allows a user with role 'Normal' to cancel their registration for a cycling event.
 
-    - **Requires authentication.**
-    - **Only users with role 'Normal' can unregister.**
+    - Requires authentication.
+    - Only users with role 'Normal' can unregister.
     - Returns an error if the user is not enrolled or the event does not exist.
     - **event_id** (int): ID of the event to unregister from.
 
@@ -145,8 +145,8 @@ def unregister_user_from_event(
     --------
     Permite que un usuario con rol 'Normal' cancele su inscripción en un evento de ciclismo.
 
-    - **Requiere autenticación.**
-    - **Solo los usuarios con rol 'Normal' pueden cancelar su inscripción.**
+    - Requiere autenticación.
+    - Solo los usuarios con rol 'Normal' pueden cancelar su inscripción.
     - Devuelve error si el evento no existe o el usuario no está inscrito.
     - **event_id** (int): ID del evento del cual se desea cancelar la inscripción.
 
@@ -160,7 +160,6 @@ def unregister_user_from_event(
     if not event:
         raise HTTPException(status_code=404, detail="El evento no existe")
 
-    # Eliminar participación
     deleted = crud_part.delete_participation(db, user_id=current_user.id, event_id=event_id)
     if not deleted:
         raise HTTPException(status_code=404, detail="No estás inscrito en este evento")
@@ -172,6 +171,25 @@ def get_my_registered_events(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
+    """
+    Get My Registered Events / Obtener mis eventos inscritos
+
+    English:
+    --------
+    Returns a list of event IDs the current user is registered in.
+
+    - Requires authentication.
+    - Only users with role 'Normal' are allowed.
+    - Returns a list of integers (event IDs) the user is enrolled in.
+
+    Español:
+    --------
+    Devuelve una lista de los IDs de eventos en los que el usuario actual está inscrito.
+
+    - Requiere autenticación.
+    - Solo permitido para usuarios con rol 'Normal'.
+    - Devuelve una lista de enteros (IDs de eventos en los que está inscrito).
+    """
     if current_user.role != Role.NORMAL:
         raise HTTPException(status_code=403, detail="No autorizado")
 

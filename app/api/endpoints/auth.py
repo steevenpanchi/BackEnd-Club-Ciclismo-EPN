@@ -53,7 +53,7 @@ def register_user(register_data: UserCreate,
             - **High**: High skill level.
             - **Medium**: Medium skill level.
             - **Low**: Low skill level.
-        - **profile_picture** (optional): Profile image URL. Defaults to null.
+        - **profile_picture** (optional): Profile image. Defaults to null.
 
     Español:
     --------
@@ -77,7 +77,7 @@ def register_user(register_data: UserCreate,
             - **Alto**: Nivel de habilidad alto.
             - **Medio**: Nivel de habilidad medio.
             - **Bajo**: Nivel de habilidad bajo.
-        - **profile_picture** (opcional): URL de imagen de perfil. Valor por defecto es null.
+        - **profile_picture** (opcional): Imagen de perfil. Valor por defecto es null.
     """
 
     # Simplemente usa la función del crud
@@ -247,7 +247,7 @@ def update_basic_info(persona_id: int, persona_update: PersonaUpdate, db: Sessio
         - **High**: High skill level.
         - **Medium**: Medium skill level.
         - **Low**: Low skill level.
-    - **profile_picture** (optional): URL or base64 string for profile picture.
+    - **profile_picture** (optional): Image of the user (PNG or JPEG). Maximum allowed size: 2 MB.
 
     Español:
     --------
@@ -263,7 +263,7 @@ def update_basic_info(persona_id: int, persona_update: PersonaUpdate, db: Sessio
         - **Alto**: Nivel de habilidad alto.
         - **Medio**: Nivel de habilidad medio.
         - **Bajo**: Nivel de habilidad bajo.
-    - **profile_picture** (opcional): URL o cadena base64 de la foto de perfil.
+    - **profile_picture** (opcional): Imagen del usuario (PNG o JPEG). Tamaño máximo permitido: 2 MB.
     """
     if current_user.role.value not in ALL_AUTH_ROLES:
         raise HTTPException(status_code=403, detail="Not enough permissions")

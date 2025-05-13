@@ -1,5 +1,5 @@
 from enum import Enum
-from sqlalchemy import Column, Integer, String, Enum as SQLAEnum, ForeignKey, DateTime, LargeBinary
+from sqlalchemy import Column, Integer, String, Enum as SQLAEnum, ForeignKey, DateTime, LargeBinary, Boolean
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from app.db.database import Base
@@ -31,6 +31,7 @@ class Event(Base):
     creation_date = Column(DateTime, default=datetime.utcnow)
     event_level = Column(SQLAEnum(EventLevel), nullable=False)
     event_mode = Column(SQLAEnum(EventMode), nullable=False)
+    is_available = Column(Boolean, default=True)
     image = Column(LargeBinary, nullable=True)
 
     # Relación con Route

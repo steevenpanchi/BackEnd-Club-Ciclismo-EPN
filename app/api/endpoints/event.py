@@ -26,7 +26,7 @@ def create_new_event(event: EventCreate, db: Session = Depends(get_db),
      - **creation_date** (required): Date and time when the event is created.
      - **event_level** (required): Level of the event (e.g., Basic, Intermediate, Advanced).
      - **event_mode** (required): Event modality (e.g., Mountain, Road).
-     - **image** (optional): Image of the event.
+     - **image** (optional): Image of the event (PNG or JPEG). Maximum allowed size: 2 MB.
 
      Español:
      --------
@@ -38,7 +38,7 @@ def create_new_event(event: EventCreate, db: Session = Depends(get_db),
      - **creation_date** (requerido): Fecha y hora en que se crea el evento.
      - **event_level** (requerido): Nivel del evento (por ejemplo, Básico, Intermedio, Avanzado).
      - **event_mode** (requerido): Modalidad del evento (por ejemplo, Montaña, Carretera).
-     - **image** (opcional): Imagen del evento.
+     - **image** (opcional): Imagen del evento (PNG o JPEG). Tamaño máximo permitido: 2 MB.
 
      """
     if current_user.role.value not in [Role.ADMIN]:
@@ -58,12 +58,13 @@ def read_all_events(db: Session = Depends(get_db), current_user: TokenData = Dep
 
           English:
           --------
-          Returns a list of all registered events, including their type, associated route, event level, image, and creation date.
+          Returns a list of all registered events, including their type, associated route, event level, image, creation date, and availability status.
 
           Español:
           --------
-          Devuelve una lista de todos los eventos registrados, incluyendo su tipo, ruta asociada, nivel del evento, imagen y fecha de creación.
-          """
+          Devuelve una lista de todos los eventos registrados, incluyendo su tipo, ruta asociada, nivel del evento, imagen, fecha de creación y estado de disponibilidad.
+
+    """
     if current_user.role.value not in ALL_AUTH_ROLES:
         raise HTTPException(status_code=403, detail="Not enough permissions")
 
@@ -90,7 +91,7 @@ def modify_event(event_id: int, event_data: EventUpdate, db: Session = Depends(g
       - **creation_date** (optional): Date and time when the event is created.
       - **event_level** (optional): Level of the event (e.g., Basic, Intermediate, Advanced).
       - **event_mode** (optional): Event modality (e.g., Mountain, Road).
-      - **image** (optional): Image ode the event.
+     - **image** (optional): Image of the event (PNG or JPEG). Maximum allowed size: 2 MB.
 
 
      Español:
@@ -103,7 +104,7 @@ def modify_event(event_id: int, event_data: EventUpdate, db: Session = Depends(g
       - **creation_date** (opcional): Fecha y hora en que se crea el evento.
       - **event_level** (opcional): Nivel del evento (por ejemplo, Básico, Intermedio, Avanzado).
       - **event_mode** (opcional): Modalidad del evento (e.g., Montaña, Carretera).
-      - **image** (opcional): Imagen del evento.
+     - **image** (opcional): Imagen del evento (PNG o JPEG). Tamaño máximo permitido: 2 MB.
 
      """
 
