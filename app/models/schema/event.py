@@ -6,6 +6,9 @@ from typing import Optional
 from datetime import datetime
 from enum import Enum
 
+from app.models.schema.route import RouteResponse
+
+
 class EventType(str, Enum):
     TRAINING = "Entrenamiento"
     RIDE = "Rodada"
@@ -75,4 +78,59 @@ class EventResponse(BaseModel):
             event_mode=obj.event_mode,
             is_available=obj.is_available,
             image=image_base64
+        )
+
+class NextEventPublicResponse(BaseModel):
+    id: int
+    event_type: EventType
+    creation_date: datetime
+    event_level: EventLevel
+    event_mode: EventMode
+    is_available: bool
+    route: RouteResponse
+    image: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+    @classmethod
+    def from_orm(cls, obj):
+        def get_default_image():
+            try:
+                with open("app/static/default_event.jpg", "rb") as f:
+                    return f"data:image/jpeg;base64,{base64.b64encode(f.read()).decode()}"
+            except Exception as e:
+                print(f"Error cargando imagen por defecto: {e}")
+                return None
+
+        # Imagen base64
+        image_base64 = None
+        if obj.image and isinstance(obj.image, (bytes, bytearray)):
+            try:
+                image_base64 = f"data:image/png;base64,{base64.b64encode(obj.image).decode()}"
+            except Exception:
+                image_base64 = get_default_image()
+        elif not obj.image or str(obj.image).strip().lower() == "string":
+            image_base64 = get_default_image()
+        else:
+            image_base64 = obj.image  # ya viene como base64
+
+        # RouteResponse correctamente construido
+        route_data = RouteResponse(
+            id=obj.route.id,
+            name=obj.route.name,
+            start_point=obj.route.start_point,
+            end_point=obj.route.end_point,
+            duration=obj.route.duration
+        ) if obj.route else None
+
+        return cls(
+            id=obj.id,
+            event_type=obj.event_type,
+            creation_date=obj.creation_date,
+            event_level=obj.event_level,
+            event_mode=obj.event_mode,
+            is_available=obj.is_available,
+            image=image_base64,
+            route=route_data
         )

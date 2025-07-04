@@ -28,3 +28,6 @@ class User(Base):
 
     # Relación con EventParticipant
     event_participations = relationship("EventParticipant", back_populates="user", cascade="all, delete")
+
+    # Relación con User
+    notifications = relationship("Notification", back_populates="user", cascade="all, delete")

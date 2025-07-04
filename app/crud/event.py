@@ -1,10 +1,16 @@
 import base64
+import locale
 from datetime import datetime
 from sqlalchemy.orm import Session, joinedload
+
+from app.crud.notification import create_notification
 from app.models.domain.event import Event
+from app.models.domain.event_participant import EventParticipant
+from app.models.domain.user import User
 from app.models.schema.event import EventCreate, EventUpdate, EventResponse
 from app.services.verify import verify_image_size
 
+locale.setlocale(locale.LC_TIME, "es_ES.UTF-8")
 
 def create_event(db: Session, event_data: EventCreate) -> EventResponse:
     create_data = event_data.dict()
@@ -12,13 +18,33 @@ def create_event(db: Session, event_data: EventCreate) -> EventResponse:
     if "image" in create_data and create_data["image"]:
         create_data["image"] = verify_image_size(create_data["image"])
 
-    from datetime import datetime
     create_data["is_available"] = datetime.now() <= event_data.creation_date
 
     db_event = Event(**create_data)
     db.add(db_event)
     db.commit()
     db.refresh(db_event)
+    db_event = (
+        db.query(Event)
+        .options(joinedload(Event.route))
+        .filter(Event.id == db_event.id)
+        .first()
+    )
+
+    dia_semana = db_event.creation_date.strftime("%A").capitalize()
+    resto_fecha = db_event.creation_date.strftime("%d de %B del %Y")
+    fecha_formateada = f"{dia_semana} {resto_fecha}"
+
+    nombre_ruta = db_event.route.name if db_event.route else "Ruta sin nombre"
+
+    normal_users = db.query(User).filter(User.role == "Normal").all()
+    for user in normal_users:
+        create_notification(
+            db,
+            user_id=user.id,
+            title="¡Nuevo evento disponible!",
+            message=f"Se ha creado el evento {db_event.event_type.value} {nombre_ruta} para el día {fecha_formateada}. ¡Inscríbete ahora!"
+        )
 
     return EventResponse.from_orm(db_event)
 
@@ -56,14 +82,59 @@ def update_event(db: Session, event_id: int, event_data: EventUpdate):
 
     db.commit()
     db.refresh(db_event)
+
+    db_event = (
+        db.query(Event)
+        .options(joinedload(Event.route))
+        .filter(Event.id == event_id)
+        .first()
+    )
+
+    dia_semana = db_event.creation_date.strftime("%A").capitalize()
+    resto_fecha = db_event.creation_date.strftime("%d de %B del %Y")
+    fecha_formateada = f"{dia_semana} {resto_fecha}"
+
+    inscritos = db.query(EventParticipant).filter(EventParticipant.event_id == event_id).all()
+    nombre_ruta = db_event.route.name if db_event.route else "Ruta sin nombre"
+
+    for ins in inscritos:
+        create_notification(
+            db,
+            user_id=ins.user_id,
+            title="Evento actualizado",
+            message=f"El evento {db_event.event_type.value} {nombre_ruta} del día {fecha_formateada} ha sido actualizado. Revisa los nuevos detalles en la plataforma."
+        )
+
     return db_event
 
 
 
 def delete_event(db: Session, event_id: int):
-    db_event = db.query(Event).filter(Event.id == event_id).first()
+    db_event = (
+        db.query(Event)
+        .options(joinedload(Event.route))
+        .filter(Event.id == event_id)
+        .first()
+    )
     if not db_event:
         return None
+
+
+    dia_semana = db_event.creation_date.strftime("%A").capitalize()
+    resto_fecha = db_event.creation_date.strftime("%d de %B del %Y")
+    fecha_formateada = f"{dia_semana} {resto_fecha}"
+
+    inscritos = db.query(EventParticipant).filter(EventParticipant.event_id == event_id).all()
+    nombre_ruta = db_event.route.name if db_event.route else "Ruta sin nombre"
+
+    for ins in inscritos:
+        create_notification(
+            db,
+            user_id=ins.user_id,
+            title="Evento cancelado",
+            message=f'El evento "{db_event.event_type.value} {nombre_ruta}" del día {fecha_formateada} ha sido cancelado. Lamentamos los inconvenientes.'
+        )
+
     db.delete(db_event)
     db.commit()
     return db_event

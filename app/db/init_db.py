@@ -5,6 +5,8 @@ import app.models.domain.persona
 import app.models.domain.event
 import app.models.domain.route
 import app.models.domain.event_participant
+from app.models.domain.notification import Notification
+
 
 
 # Se inicia la base de datos y de ser el caso crea la tabla

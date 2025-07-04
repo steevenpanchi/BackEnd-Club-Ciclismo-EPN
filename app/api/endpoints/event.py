@@ -1,10 +1,13 @@
+from datetime import datetime
+
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from typing import List
 from app.core.security import get_current_user
 from app.db.session import get_db
+from app.models.domain.event import Event
 from app.models.domain.user import Role
-from app.models.schema.event import EventCreate, EventResponse, EventUpdate
+from app.models.schema.event import EventCreate, EventResponse, EventUpdate, NextEventPublicResponse
 from app.crud.event import create_event, get_events, update_event, delete_event
 from app.models.schema.user import TokenData
 
@@ -144,3 +147,76 @@ def remove_event(event_id: int, db: Session = Depends(get_db),
     if not delete_event(db, event_id):
         raise HTTPException(status_code=404, detail="Event not found")
     return {"message": "Event deleted successfully"}
+
+@router.get("/next", response_model=NextEventPublicResponse)
+def get_next_event_public(
+    db: Session = Depends(get_db),
+    include_image: bool = True
+):
+    """
+    Get the next upcoming public event.
+
+    English:
+    --------
+    Retrieve the next cycling event scheduled in the future. Includes route information
+    and optionally the event image.
+
+    - **include_image** (bool, optional): Whether to include the image in the response. Defaults to True.
+
+
+    Español:
+    --------
+    Obtener el próximo evento público programado.
+
+    Incluye información de la ruta y opcionalmente la imagen del evento.
+
+    - **include_image** (bool, opcional): Si se debe incluir la imagen en la respuesta. Por defecto es True.
+
+    """
+    event = (
+        db.query(Event)
+        .options(joinedload(Event.route))
+        .filter(Event.creation_date >= datetime.now())
+        .order_by(Event.creation_date.asc())
+        .first()
+    )
+
+
+
+    if not event:
+        raise HTTPException(status_code=404, detail="No hay eventos próximos")
+
+    return NextEventPublicResponse.from_orm(event)
+
+@router.get("/public_upcoming", response_model=List[EventResponse])
+def get_public_upcoming_events(db: Session = Depends(get_db)):
+    """
+    Get upcoming public events (unauthenticated users).
+
+    English:
+    --------
+    Retrieve all future cycling events accessible to the public.
+    Only events with a creation_date equal or later than the current date are returned.
+
+    - **Authentication**: Not required.
+    - **Response**: List of upcoming events with route information.
+
+    Español:
+    --------
+    Obtener eventos públicos próximos (usuarios no autenticados).
+
+    Retorna todos los eventos de ciclismo cuya fecha de creación sea igual o posterior
+    a la fecha actual. Ideal para mostrar a visitantes o usuarios no registrados.
+
+    - **Autenticación**: No requerida.
+    - **Respuesta**: Lista de eventos próximos con información de la ruta.
+    """
+    eventos = (
+        db.query(Event)
+        .options(joinedload(Event.route))
+        .filter(Event.creation_date >= datetime.now())
+        .order_by(Event.creation_date.asc())
+        .all()
+    )
+
+    return [EventResponse.from_orm(ev) for ev in eventos]
