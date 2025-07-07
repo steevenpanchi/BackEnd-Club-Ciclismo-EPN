@@ -80,7 +80,6 @@ def register_user(register_data: UserCreate,
         - **profile_picture** (opcional): Imagen de perfil. Valor por defecto es null.
     """
 
-    # Simplemente usa la función del crud
     new_user = create_user(db, register_data)
 
     return new_user
@@ -120,6 +119,129 @@ def login_for_access_token(
     )
     return {"access_token": access_token, "token_type": "bearer"}
 
+@router.post('/reset_password/send')
+async def send_reset_password_code(
+        background_tasks: BackgroundTasks,
+        email: EmailStr = Form(...),
+        db: Session = Depends(get_db)
+):
+    """
+    English:
+    --------
+    Send recovery password email:
+
+    - **email** (required): Email of an existing user.
+
+    Español:
+    --------
+    Enviar un correo electrónico para la recuperación de contraseña:
+
+    - **email** (required): Correo electrónico de un usuario existente.
+    """
+    subject = 'Recuperación de contraseña'
+
+    try:
+        # Obtener el ID del usuario por su email
+        user_id = get_user_id_by_email(db, email)
+
+        if not user_id:
+            # No revelamos si el email existe por seguridad
+            return {"message": "El código fue enviado exitosamente."}
+
+        # Generar y guardar el token
+        reset_token = AuthToken()
+        reset_token.generate_token(user_id)
+
+        if not create_token(db, reset_token):
+            raise HTTPException(status_code=500, detail="No se pudo generar el token de recuperación.")
+
+        # Configurar la zona horaria para la fecha de expiración
+        ecuador_tz = pytz.timezone("America/Guayaquil")
+        expiration_time = reset_token.date_expiration.replace(tzinfo=pytz.utc).astimezone(ecuador_tz)
+
+        # Crear el contexto del email
+        context = {
+            "body": {
+                "title": "Club de Ciclismo EPN",
+                "code": reset_token.value,
+                "date": expiration_time.strftime("%Y-%m-%d %H:%M:%S"),
+            }
+        }
+
+        # Enviar el email en segundo plano
+        background_tasks.add_task(send_email, email, subject, context, "email.html")
+
+        return {"message": "El código fue enviado exitosamente."}
+
+    except HTTPException as http_exc:
+        raise http_exc
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Error interno del servidor.")
+
+
+
+
+
+@router.post('/reset_password/verify', response_model=dict)
+async def verify_password_code(
+        code: int,
+        db: Session = Depends(get_db)
+):
+    """
+           English:
+           --------
+           Verify recovery password code:
+
+           - **code** (required): Code sent.
+
+           Español:
+           --------
+            Verificar código de recuperación de contraseña:
+
+           - **code** (required): Código enviado.
+    """
+    is_verified, id_user = verify_token(db, code)
+    if is_verified and is_verified is not None:
+        return {'is_valid': True, 'message': 'Código valido'}
+    if not is_verified and is_verified is not None:
+        raise HTTPException(status_code=410, detail="Código expirado")
+    raise HTTPException(status_code=400, detail="Código invalido")
+
+
+@router.post('/reset_password/reset', response_model=dict)
+async def reset_forgotten_password(
+        code: int,
+        new_password: str,
+        db: Session = Depends(get_db)):
+    """
+           English:
+           --------
+           Reset password with a verify code:
+
+           - **code** (required): Code sent.
+           - **password** (required): New password with:
+                - One Letter in UpperCase
+                - One Number
+                - 8 character length
+                - One Special character
+
+           Español:
+           --------
+            Resetear la contraseña con un código de recuperación:
+
+           - **code** (required): Código enviado.
+           - **new_password** (required): Nueva contraseña con:
+                - Una letra en mayúscula
+                - Un número
+                - Longitud de 8 caracteres
+                - Un caracter especial
+        """
+    if not verify_structure_password(new_password):
+        raise HTTPException(status_code=400, detail="La contraseña debe contener almenos una letra y un numero")
+    return reset_password(db, code, new_password)
+
+
 @router.delete("/delete/{user_id}", response_model=UserResponse)
 def delete_user_and_persona(user_id: int, db: Session = Depends(get_db),
                             current_user: TokenData = Depends(get_current_user)
@@ -154,7 +276,7 @@ def delete_user_and_persona(user_id: int, db: Session = Depends(get_db),
 
         # Eliminar el usuario
         db.delete(user)
-        db.commit()  # Confirmar la eliminación del usuario
+        db.commit()
 
         # Eliminar la persona
         if persona:
@@ -195,11 +317,7 @@ def get_users(db: Session = Depends(get_db),
 
         # Mapear la respuesta para incluir el rol y la persona
         user_responses = [
-            UserWithPersonaResponse(
-                id=user.id,
-                role=user.role,  # Agregamos el rol del usuario
-                person=PersonaResponse.from_orm(user.person)  # Mapeamos la persona asociada al usuario
-            )
+            UserWithPersonaResponse.from_orm_custom(user)
             for user in users
         ]
 
@@ -323,131 +441,7 @@ def update_user_role(user_id: int, user_update: UserUpdate,
         db.refresh(user)
 
         # Devolver la respuesta con el usuario actualizado
-        return UserResponse.from_orm(user)
-
+        return UserResponse.from_orm_custom(user)
     except Exception as e:
         print(f"Error al actualizar el rol del usuario: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error al actualizar el rol: {str(e)}")
-
-
-@router.post('/reset_password/send')
-async def send_reset_password_code(
-        background_tasks: BackgroundTasks,
-        email: EmailStr = Form(...),
-        db: Session = Depends(get_db)
-):
-    """
-    English:
-    --------
-    Send recovery password email:
-
-    - **email** (required): Email of an existing user.
-
-    Español:
-    --------
-    Enviar un correo electrónico para la recuperación de contraseña:
-
-    - **email** (required): Correo electrónico de un usuario existente.
-    """
-    subject = 'Recuperación de contraseña'
-
-    try:
-        # Obtener el ID del usuario por su email
-        user_id = get_user_id_by_email(db, email)
-
-        if not user_id:
-            # No revelamos si el email existe por seguridad
-            return {"message": "El código fue enviado exitosamente."}
-
-        # Generar y guardar el token
-        reset_token = AuthToken()
-        reset_token.generate_token(user_id)
-
-        if not create_token(db, reset_token):
-            raise HTTPException(status_code=500, detail="No se pudo generar el token de recuperación.")
-
-        # Configurar la zona horaria para la fecha de expiración
-        ecuador_tz = pytz.timezone("America/Guayaquil")
-        expiration_time = reset_token.date_expiration.replace(tzinfo=pytz.utc).astimezone(ecuador_tz)
-
-        # Crear el contexto del email
-        context = {
-            "body": {
-                "title": "Club de Ciclismo EPN",
-                "code": reset_token.value,
-                "date": expiration_time.strftime("%Y-%m-%d %H:%M:%S"),
-            }
-        }
-
-        # Enviar el email en segundo plano
-        background_tasks.add_task(send_email, email, subject, context, "email.html")
-
-        return {"message": "El código fue enviado exitosamente."}
-
-    except HTTPException as http_exc:
-        raise http_exc
-
-    except Exception as e:
-        raise HTTPException(status_code=500, detail="Error interno del servidor.")
-
-
-
-
-
-@router.post('/reset_password/verify', response_model=dict)
-async def verify_password_code(
-        code: int,
-        db: Session = Depends(get_db)
-):
-    """
-           English:
-           --------
-           Verify recovery password code:
-
-           - **code** (required): Code sent.
-
-           Español:
-           --------
-            Verificar código de recuperación de contraseña:
-
-           - **code** (required): Código enviado.
-    """
-    is_verified, id_user = verify_token(db, code)
-    if is_verified and is_verified is not None:
-        return {'is_valid': True, 'message': 'Código valido'}
-    if not is_verified and is_verified is not None:
-        raise HTTPException(status_code=410, detail="Código expirado")
-    raise HTTPException(status_code=400, detail="Código invalido")
-
-
-@router.post('/reset_password/reset', response_model=dict)
-async def reset_forgotten_password(
-        code: int,
-        new_password: str,
-        db: Session = Depends(get_db)):
-    """
-           English:
-           --------
-           Reset password with a verify code:
-
-           - **code** (required): Code sent.
-           - **password** (required): New password with:
-                - One Letter in UpperCase
-                - One Number
-                - 8 character length
-                - One Special character
-
-           Español:
-           --------
-            Resetear la contraseña con un código de recuperación:
-
-           - **code** (required): Código enviado.
-           - **new_password** (required): Nueva contraseña con:
-                - Una letra en mayúscula
-                - Un número
-                - Longitud de 8 caracteres
-                - Un caracter especial
-        """
-    if not verify_structure_password(new_password):
-        raise HTTPException(status_code=400, detail="La contraseña debe contener almenos una letra y un numero")
-    return reset_password(db, code, new_password)

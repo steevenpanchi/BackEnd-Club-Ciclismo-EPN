@@ -38,7 +38,14 @@ class UserResponse(UserBase):
 
     class Config:
         from_attributes = True
-
+    @classmethod
+    def from_orm_custom(cls, user):
+        return cls(
+            id=user.id,
+            email=user.email,
+            role=user.role,
+            person=PersonaResponse.from_orm(user.person) if user.person else None
+        )
 
 # Esquema para actualizar los datos de un usuario
 class UserUpdate(BaseModel):
@@ -60,7 +67,13 @@ class UserWithPersonaResponse(BaseModel):
 
     class Config:
         from_attributes = True
-
+    @classmethod
+    def from_orm_custom(cls, user):
+        return cls(
+            id=user.id,
+            role=user.role,
+            person=PersonaResponse.from_orm(user.person) if user.person else None
+        )
 class UserBasicResponse(BaseModel):
     id: int
     person: PersonaResponse
