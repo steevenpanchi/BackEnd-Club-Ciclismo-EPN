@@ -68,43 +68,6 @@ def get_routes_all(db: Session = Depends(get_db),
     routes = get_routes(db)
     return routes
 
-@router.put("/update/{route_id}", response_model=RouteResponse)
-def update_route_endpoint(route_id: int, route_data: RouteUpdate, db: Session = Depends(get_db),
-                          current_user: TokenData = Depends(get_current_user)):
-    """
-      Update Route by ID / Actualizar ruta por ID
-
-      English:
-      --------
-      Update the details of a cycling route by its ID.
-
-      - **route_id** (required): ID of the route to update.
-      - **route_data** (required): The data to update the route with.
-          - **name**: Name of the route (optional).
-          - **start_point**: Starting location of the route (optional).
-          - **end_point**: Ending location of the route (optional).
-          - **duration**: Estimated duration of the route in minutes (optional).
-
-      Español:
-      --------
-      Actualizar los detalles de una ruta de ciclismo por su ID.
-
-      - **route_id** (requerido): ID de la ruta a actualizar.
-      - **route_data** (requerido): Los datos con los que actualizar la ruta.
-          - **name**: Nombre de la ruta (opcional).
-          - **start_point**: Punto de inicio de la ruta (opcional).
-          - **end_point**: Punto final de la ruta (opcional).
-          - **duration**: Duración estimada de la ruta en minutos (opcional).
-      """
-    if current_user.role.value not in [Role.ADMIN]:
-        raise HTTPException(status_code=403, detail="Not enough permissions")
-
-    updated_route = update_route(db, route_id, route_data)
-    if updated_route:
-        return updated_route
-    raise HTTPException(status_code=404, detail="Route not found")
-
-
 @router.delete("/delete/{route_id}", response_model=RouteResponse)
 def delete_route_endpoint(route_id: int, db: Session = Depends(get_db),
                           current_user: TokenData = Depends(get_current_user)):

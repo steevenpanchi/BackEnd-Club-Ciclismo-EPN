@@ -118,7 +118,6 @@ def modify_event(event_id: int, event_data: EventUpdate, db: Session = Depends(g
     if not updated_event:
         raise HTTPException(status_code=404, detail="Event not found")
 
-    # 🔥 Esto es lo único que ajustamos: devolver EventResponse.from_orm()
     return EventResponse.from_orm(updated_event)
 
 
@@ -180,8 +179,6 @@ def get_next_event_public(
         .order_by(Event.creation_date.asc())
         .first()
     )
-
-
 
     if not event:
         raise HTTPException(status_code=404, detail="No hay eventos próximos")
